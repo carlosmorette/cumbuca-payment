@@ -3,7 +3,13 @@
 (require brag/support)
 (require br-parser-tools/lex)
 (require br-parser-tools/lex-sre)
+(require syntax/strip-context)
+(require "parser.rkt")
 
+(provide (rename-out [my-read-syntax read-syntax]))
+(provide tokenize)
+
+;; TODO: Vale a pena colocar o tokenize em um módulo separado
 (define (tokenize input)
   (port-count-lines! input)
   (define my-lexer
@@ -14,13 +20,16 @@
      ["]" (token 'CLOSE-DIVISION lexeme)]
      ["{" (token 'OPEN-GROUPING lexeme)]
      ["}" (token 'CLOSE-GROUPING lexeme)]
-     ["," (token 'COMMA lexeme)]
      [(repetition 1 +inf.0 numeric) (token 'NUMBER lexeme)]
-     [whitespace (token 'WHITESPACE #:skip? #t)]
-     [(or "Processar" "Checkar") (token 'PROCCESS-ACTION lexeme)]
      [(or "Pagamento pix" "Pagamento de boleto") (token 'PAYMENT-TYPE lexeme)]
+     [whitespace (token 'WHITESPACE #:skip? #t)]
      [(eof) (void)]))
   (define (next-token) (my-lexer input))
   next-token)
 
-(provide tokenize)
+(define (my-read-syntax src input)
+  (define parsed (parse src (tokenize input)))
+  (strip-context
+   (datum->syntax #f `(module cumbuca-payment-module "expander.rkt"
+                        ,parsed))))
+
